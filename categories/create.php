@@ -1,22 +1,26 @@
 <?php
 $name = "";
-$image = "";
 $description = "";
 if($_SERVER["REQUEST_METHOD"]=="POST") {
     include($_SERVER["DOCUMENT_ROOT"] . "/connection.php");
     if (isset($_POST['name']))
         $name = $_POST['name'];
-    if (isset($_POST['image']))
-        $image = $_POST['image'];
     if (isset($_POST['description']))
         $description = $_POST['description'];
 
-    if (!empty($name) && !empty($image) && !empty($description)) {
-        $sql = "INSERT INTO tbl_categories (name, image, description) VALUES (?,?,?)";
-        $stmt = $dbh->prepare($sql);
-        $stmt->execute([$name, $image, $description]);
-        header("location: /");
-        exit();
+    $target_dir = $_SERVER["DOCUMENT_ROOT"]."/uploads/"; //папка на сервері куди зберігаємо файл
+    $uploadFileName=$_FILES["image"]["name"]; //витягуємо імя файлу, який передає клієнт
+    $exp = strtolower(pathinfo(basename($uploadFileName), PATHINFO_EXTENSION)); //з файлу отримали розширення
+    $fileName = uniqid().".".$exp; //унікальне імя для файлу
+    $fileSave = $target_dir.$fileName; //місце збереження файлу
+    if(move_uploaded_file($_FILES["image"]["tmp_name"], $fileSave)) {
+        if (!empty($name) && !empty($description)) {
+            $sql = "INSERT INTO tbl_categories (name, image, description) VALUES (?,?,?)";
+            $stmt = $dbh->prepare($sql);
+            $stmt->execute([$name, $fileName, $description]);
+            header("location: /");
+            exit();
+        }
     }
 }
 ?>
@@ -38,7 +42,7 @@ if($_SERVER["REQUEST_METHOD"]=="POST") {
 <main>
     <div class="container">
         <h1 class="text-center">Додати категорію</h1>
-        <form method="post" class="needs-validation" novalidate>
+        <form method="post" class="needs-validation" novalidate enctype="multipart/form-data">
             <div class="mb-3">
                 <label for="name" class="form-label">Назва</label>
                 <input type="text"
@@ -51,10 +55,15 @@ if($_SERVER["REQUEST_METHOD"]=="POST") {
                 </div>
             </div>
             <div class="mb-3">
-                <label for="image" class="form-label">URL фото</label>
-                <input type="text"
-                       value="<?php echo $image; ?>"
-                       class="form-control"
+                <label for="image" class="form-label">
+                    <img src="/uploads/upload.png"
+                         style="cursor: pointer"
+                         alt="фото категорії"
+                         id="selectImage"
+                        width="170">
+                </label>
+                <input type="file"
+                       class="d-none"
                        id="image"
                        name="image" required>
                 <div class="invalid-feedback">
@@ -85,5 +94,15 @@ if($_SERVER["REQUEST_METHOD"]=="POST") {
 
 <script src="/js/bootstrap.bundle.min.js"></script>
 <script src="/js/bootstrap.validation.js"></script>
+<script>
+    window.addEventListener("load", (event)=> {
+        const image = document.getElementById("image");
+        image.onchange=(e) => {
+            const file = e.target.files[0];
+            console.log("User select file", file);
+            document.getElementById("selectImage").src=URL.createObjectURL(file);
+        }
+    });
+</script>
 </body>
 </html>
